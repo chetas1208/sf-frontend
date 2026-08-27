@@ -26,12 +26,8 @@ const INPUT: ContactInput = {
   company: null,
   job_title: null,
   photo: null,
-  address: null,
-  city: null,
-  state: null,
-  postal_code: null,
-  country: null,
   notes: null,
+  addresses: [],
 };
 
 describe("listContacts", () => {
@@ -171,6 +167,21 @@ describe("error translation", () => {
     expect(toFieldErrors(error)).toEqual({
       email: "value is not a valid email address",
       first_name: "String should have at least 1 character",
+    });
+  });
+
+  it("maps nested address validation onto the address section", () => {
+    const error = new ApiError(
+      422,
+      JSON.stringify({
+        detail: [
+          { loc: ["body", "addresses", 1, "postal_code"], msg: "Postal code is too long" },
+        ],
+      }),
+    );
+
+    expect(toFieldErrors(error)).toEqual({
+      addresses: "Address 2: Postal code is too long",
     });
   });
 

@@ -3,6 +3,23 @@
  * Field names stay snake_case so payloads map 1:1 onto the wire format.
  */
 
+export const ADDRESS_TYPES = ["Home", "Work", "Other"] as const;
+export type AddressType = (typeof ADDRESS_TYPES)[number];
+
+export interface AddressInput {
+  type: AddressType;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+}
+
+/** `AddressRead` — a stored address nested under its owning contact. */
+export interface Address extends AddressInput {
+  id: number;
+}
+
 /** `ContactRead` — a stored contact, as returned by every contact endpoint. */
 export interface Contact {
   id: number;
@@ -13,22 +30,25 @@ export interface Contact {
   company: string | null;
   job_title: string | null;
   photo: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-  country: string | null;
   notes: string | null;
+  addresses: Address[];
   created_at: string;
   updated_at: string;
   full_name: string;
 }
 
 /** Every editable field, i.e. `ContactCreate` / `ContactReplace`. */
-export type ContactInput = Omit<
-  Contact,
-  "id" | "created_at" | "updated_at" | "full_name"
->;
+export interface ContactInput {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  job_title: string | null;
+  photo: string | null;
+  notes: string | null;
+  addresses: AddressInput[];
+}
 
 /** `ContactPage` — one page of contacts plus the totals needed to paginate. */
 export interface ContactPage {
@@ -77,7 +97,7 @@ export type FormState = {
   /** Per-field messages keyed by input name. */
   fieldErrors?: Partial<Record<keyof ContactInput, string>>;
   /** Echo of the submitted values so the form survives a failed round trip. */
-  values?: Partial<Record<keyof ContactInput, string>>;
+  values?: Partial<Record<string, string>>;
 };
 
 export const EMPTY_FORM_STATE: FormState = { status: "idle" };
