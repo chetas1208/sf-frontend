@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ContactInput } from "./types";
+import { ADDRESS_TYPES, type ContactInput } from "./types";
 
 export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 const PHOTO_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})$/;
@@ -40,6 +40,27 @@ function requiredText(max: number, label: string) {
     .max(max, `${label} must be ${max} characters or fewer`);
 }
 
+const addressSchema = z.object({
+  type: z.enum(ADDRESS_TYPES),
+  address: optionalText(300, "Street address"),
+  city: optionalText(120, "City"),
+  state: optionalText(120, "State / region"),
+  postal_code: optionalText(20, "Postal code"),
+  country: optionalText(120, "Country"),
+});
+
+const serializedAddressesSchema = z.string().transform((value, context) => {
+  if (!value.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) throw new Error("not an array");
+    return parsed;
+  } catch {
+    context.addIssue({ code: "custom", message: "Enter valid address details." });
+    return z.NEVER;
+  }
+}).pipe(z.array(addressSchema));
+
 export const contactInputSchema = z.object({
   first_name: requiredText(100, "First name"),
   last_name: requiredText(100, "Last name"),
@@ -63,17 +84,13 @@ export const contactInputSchema = z.object({
       "Choose a valid JPEG, PNG, or WebP image no larger than 2 MB",
     )
     .default(null),
-  address: optionalText(300, "Address"),
-  city: optionalText(120, "City"),
-  state: optionalText(120, "State"),
-  postal_code: optionalText(20, "Postal code"),
-  country: optionalText(120, "Country"),
   notes: z
     .string()
     .trim()
     .transform((value) => value || null)
     .nullable()
     .default(null),
+  addresses: serializedAddressesSchema,
 }) satisfies z.ZodType<ContactInput, unknown>;
 
 export type ContactFormValues = z.input<typeof contactInputSchema>;
@@ -97,7 +114,7 @@ export function zodFieldErrors(
 /* ------------------------------------------------------------------ */
 
 export interface ContactFieldSpec {
-  name: keyof ContactInput;
+  name: Exclude<keyof ContactInput, "addresses">;
   label: string;
   type?: "text" | "email" | "tel" | "textarea";
   required?: boolean;
@@ -175,48 +192,6 @@ export const CONTACT_FIELD_GROUPS: ContactFieldGroup[] = [
     ],
   },
   {
-    title: "Address",
-    description: "Optional postal details.",
-    fields: [
-      {
-        name: "address",
-        label: "Street address",
-        maxLength: 300,
-        placeholder: "1 Market St, Suite 400",
-        autoComplete: "street-address",
-        wide: true,
-      },
-      {
-        name: "city",
-        label: "City",
-        maxLength: 120,
-        placeholder: "San Francisco",
-        autoComplete: "address-level2",
-      },
-      {
-        name: "state",
-        label: "State / region",
-        maxLength: 120,
-        placeholder: "CA",
-        autoComplete: "address-level1",
-      },
-      {
-        name: "postal_code",
-        label: "Postal code",
-        maxLength: 20,
-        placeholder: "94105",
-        autoComplete: "postal-code",
-      },
-      {
-        name: "country",
-        label: "Country",
-        maxLength: 120,
-        placeholder: "USA",
-        autoComplete: "country-name",
-      },
-    ],
-  },
-  {
     title: "Notes",
     description: "Anything worth remembering. No length limit.",
     fields: [
@@ -239,13 +214,14 @@ export const CONTACT_FIELDS: ContactFieldSpec[] = CONTACT_FIELD_GROUPS.flatMap(
 /** Pull the contact fields out of a submitted form, as raw strings. */
 export function formDataToValues(
   formData: FormData,
-): Record<keyof ContactInput, string> {
+): Record<string, string> {
   const values = Object.fromEntries(
     CONTACT_FIELDS.map((field) => [
       field.name,
       String(formData.get(field.name) ?? ""),
     ]),
-  ) as Record<keyof ContactInput, string>;
+  ) as Record<string, string>;
   values.photo = String(formData.get("photo") ?? "");
+  values.addresses = String(formData.get("addresses") ?? "[]");
   return values;
 }

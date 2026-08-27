@@ -33,8 +33,8 @@ describe("ContactForm", () => {
 
     expect(screen.getByLabelText(/first name/i)).toHaveValue("Ada");
     expect(screen.getByLabelText(/^email/i)).toHaveValue("ada@example.com");
-    // Nulls become empty inputs rather than the string "null".
-    expect(screen.getByLabelText(/street address/i)).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("Home");
+    expect(screen.getByLabelText("City")).toHaveValue("San Francisco");
   });
 
   it("previews and submits a supported photo", async () => {
@@ -98,6 +98,31 @@ describe("ContactForm", () => {
     await waitFor(() => expect(action).toHaveBeenCalled());
 
     expect(action.mock.calls[0][1].get("photo")).toBe("data:image/jpeg;base64,/9j/4AAQ");
+  });
+
+  it("adds, edits, removes, and submits multiple addresses", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    renderForm(action, makeContact({ addresses: [] }));
+
+    expect(screen.getByText("No addresses added.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /add another address/i }));
+    await userEvent.click(screen.getByRole("button", { name: /add another address/i }));
+
+    const types = screen.getAllByRole("combobox");
+    expect(types).toHaveLength(2);
+    await userEvent.selectOptions(types[1], "Work");
+    const streets = screen.getAllByLabelText("Street address");
+    await userEvent.type(streets[1], "1 Hacker Way");
+    await userEvent.click(screen.getAllByRole("button", { name: /remove address/i })[0]);
+
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: /create contact/i }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(JSON.parse(String(action.mock.calls[0][1].get("addresses")))).toEqual([
+      expect.objectContaining({ type: "Work", address: "1 Hacker Way" }),
+    ]);
   });
 
   it("submits the entered values to the action", async () => {

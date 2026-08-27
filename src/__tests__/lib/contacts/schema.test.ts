@@ -14,12 +14,8 @@ function values(overrides: Record<string, string> = {}) {
     company: "",
     job_title: "",
     photo: "",
-    address: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    country: "",
     notes: "",
+    addresses: "[]",
     ...overrides,
   };
 }
@@ -59,13 +55,24 @@ describe("contactInputSchema", () => {
 
   it("enforces the API's length limits", () => {
     const result = contactInputSchema.safeParse(
-      values({ first_name: "a".repeat(101), postal_code: "9".repeat(21) }),
+      values({ first_name: "a".repeat(101) }),
     );
 
     expect(zodFieldErrors(result.error!)).toEqual({
       first_name: "First name must be 100 characters or fewer",
-      postal_code: "Postal code must be 20 characters or fewer",
     });
+  });
+
+  it("validates nested address field limits", () => {
+    const result = contactInputSchema.safeParse(
+      values({
+        addresses: JSON.stringify([
+          { type: "Home", postal_code: "9".repeat(21) },
+        ]),
+      }),
+    );
+
+    expect(zodFieldErrors(result.error!).addresses).toMatch(/20 characters or fewer/i);
   });
 
   it("accepts a supported photo data URL and rejects other photo values", () => {
@@ -92,7 +99,7 @@ describe("formDataToValues", () => {
     expect(extracted.first_name).toBe("Grace");
     expect(extracted.last_name).toBe("");
     expect(Object.keys(extracted).sort()).toEqual(
-      [...CONTACT_FIELDS.map((field) => field.name), "photo"].sort(),
+      [...CONTACT_FIELDS.map((field) => field.name), "photo", "addresses"].sort(),
     );
   });
 });

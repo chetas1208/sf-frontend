@@ -132,6 +132,13 @@ export function toFieldErrors(
 
   const fieldErrors: Partial<Record<keyof ContactInput, string>> = {};
   for (const issue of detail) {
+    const addressIndex = issue.loc?.indexOf("addresses");
+    if (addressIndex != null && addressIndex >= 0) {
+      const row = issue.loc[addressIndex + 1];
+      const rowLabel = typeof row === "number" ? `Address ${row + 1}` : "Address";
+      fieldErrors.addresses ??= `${rowLabel}: ${issue.msg}`;
+      continue;
+    }
     const field = issue.loc?.[issue.loc.length - 1];
     if (typeof field === "string" && field !== "body") {
       fieldErrors[field as keyof ContactInput] ??= issue.msg;
