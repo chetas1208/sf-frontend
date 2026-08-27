@@ -62,6 +62,9 @@ const config: Config = {
     '<rootDir>/.next/',
     '<rootDir>/e2e/',
   ],
+  // Standalone production output contains its own package.json, which must not
+  // be indexed alongside the source package by Jest's haste map.
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
 }
 
 // next/jest *appends* its own transformIgnorePatterns, and the list is an OR — so

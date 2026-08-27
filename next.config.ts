@@ -42,6 +42,7 @@ const gitSha =
 // Note: this app reads and writes through server components and server actions,
 // so it needs a Node runtime. `output: "export"` is deliberately not offered.
 const nextConfig: NextConfig = {
+  output: "standalone",
   trailingSlash: true,
   // Hosts allowed to load dev-only resources (/_next/hmr, /_next/static…) when the
   // dev server is reached from something other than localhost — a phone or another
