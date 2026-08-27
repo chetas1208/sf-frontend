@@ -11,11 +11,19 @@ describe("AddressActions", () => {
 
     render(<AddressActions address={address} />);
 
-    expect(screen.getByRole("link", { name: /open in maps/i })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", {
+        name: "Open home address in Maps: San Francisco, CA, USA",
+      }),
+    ).toHaveAttribute(
       "href",
       "https://www.google.com/maps/dir/?api=1&destination=San%20Francisco%2C%20CA%2C%20USA",
     );
-    await userEvent.click(screen.getByRole("button", { name: /copy home address/i }));
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Copy home address: San Francisco, CA, USA",
+      }),
+    );
 
     expect(writeText).toHaveBeenCalledWith("San Francisco, CA, USA");
     expect(screen.getByText("Copied")).toBeInTheDocument();
@@ -30,6 +38,38 @@ describe("AddressActions", () => {
     await userEvent.click(screen.getByRole("button", { name: /copy home address/i }));
 
     expect(screen.getByText("Copy failed")).toBeInTheDocument();
+  });
+
+  it("keeps actions distinguishable when a contact repeats an address type", () => {
+    const home = makeContact().addresses[0];
+    const secondHome = { ...home, id: home.id + 1, city: "Oakland" };
+    render(
+      <>
+        <AddressActions address={home} />
+        <AddressActions address={secondHome} />
+      </>,
+    );
+
+    expect(
+      screen.getByRole("link", {
+        name: "Open home address in Maps: San Francisco, CA, USA",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "Open home address in Maps: Oakland, CA, USA",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Copy home address: San Francisco, CA, USA",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Copy home address: Oakland, CA, USA",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("omits actions when an address has no searchable details", () => {
