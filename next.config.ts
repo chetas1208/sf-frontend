@@ -43,6 +43,13 @@ const gitSha =
 // so it needs a Node runtime. `output: "export"` is deliberately not offered.
 const nextConfig: NextConfig = {
   output: "standalone",
+  // A 2 MiB binary photo becomes roughly 2.67 MiB as Base64, plus form fields
+  // and multipart overhead. Keep enough headroom for the existing API limit.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
+  },
   trailingSlash: true,
   // Hosts allowed to load dev-only resources (/_next/hmr, /_next/static…) when the
   // dev server is reached from something other than localhost — a phone or another

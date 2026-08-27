@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ContactForm from "@/components/contacts/ContactForm";
 import { PHOTO_MAX_BYTES } from "@/lib/contacts/schema";
@@ -56,6 +56,52 @@ describe("ContactForm", () => {
     );
   });
 
+  it("accepts a supported photo dropped on the dropzone", async () => {
+    renderForm(jest.fn(), makeContact());
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "avatar.png", {
+      type: "image/png",
+    });
+    const dropzone = screen.getByText(/drop a photo here/i).closest("label");
+
+    expect(dropzone).not.toBeNull();
+    fireEvent.drop(dropzone!, { dataTransfer: { files: [file] } });
+
+    expect(await screen.findByAltText("Ada Lovelace profile photo")).toBeInTheDocument();
+  });
+
+  it("disables submit while a photo is being processed", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    Object.defineProperty(globalThis, "createImageBitmap", {
+      configurable: true,
+      value: () => new Promise<never>(() => undefined),
+    });
+
+    try {
+      renderForm(action, makeContact());
+      await userEvent.upload(
+        screen.getByLabelText(/choose photo/i),
+        new File([new Uint8Array([137, 80, 78, 71])], "avatar.png", {
+          type: "image/png",
+        }),
+      );
+
+      expect(screen.getByRole("button", { name: /create contact/i })).toBeDisabled();
+      expect(screen.getByRole("status")).toHaveTextContent(/preparing photo/i);
+    } finally {
+      if (originalCreateImageBitmap) {
+        Object.defineProperty(globalThis, "createImageBitmap", {
+          configurable: true,
+          value: originalCreateImageBitmap,
+        });
+      } else {
+        delete (globalThis as { createImageBitmap?: unknown }).createImageBitmap;
+      }
+    }
+  });
+
   it("rejects unsupported and oversized photos", async () => {
     renderForm(jest.fn(), makeContact());
     const user = userEvent.setup({ applyAccept: false });
@@ -70,6 +116,26 @@ describe("ContactForm", () => {
     });
     await user.upload(input, oversized);
     expect(await screen.findByRole("alert")).toHaveTextContent(/2 mb or smaller/i);
+  });
+
+  it("blocks submit after an invalid photo until it is removed or replaced", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    renderForm(action, makeContact({ photo: "data:image/png;base64,iVBORw0KGgo=" }));
+    const user = userEvent.setup({ applyAccept: false });
+
+    await user.upload(
+      screen.getByLabelText(/choose photo/i),
+      new File(["gif"], "avatar.gif", { type: "image/gif" }),
+    );
+    await user.click(screen.getByRole("button", { name: /create contact/i }));
+
+    expect(action).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /remove photo/i }));
+    await user.click(screen.getByRole("button", { name: /create contact/i }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(action.mock.calls[0][1].get("photo")).toBe("");
   });
 
   it("removes an existing photo before submit", async () => {
