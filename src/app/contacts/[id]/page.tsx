@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, Pencil } from "lucide-react";
 import ContactAvatar from "@/components/contacts/ContactAvatar";
 import DeleteContactButton from "@/components/contacts/DeleteContactButton";
+import ShareContactButton from "@/components/contacts/ShareContactButton";
 import { buttonClasses } from "@/components/ui/Button";
 import { getContact } from "@/lib/contacts/api";
 import { addressLine, formatTimestamp, jobLine } from "@/lib/contacts/format";
@@ -68,6 +69,18 @@ export default async function ContactDetailPage({ params }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <ShareContactButton
+            contact={{
+              first_name: contact.first_name,
+              last_name: contact.last_name,
+              email: contact.email,
+              phone: contact.phone,
+              company: contact.company,
+              job_title: contact.job_title,
+              notes: contact.notes,
+              addresses: contact.addresses,
+            }}
+          />
           <Link
             href={`/contacts/${contact.id}/edit`}
             className={buttonClasses("secondary")}
