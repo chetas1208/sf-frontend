@@ -71,6 +71,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
 
         <div className="flex items-center gap-2">
           <ShareContactButton
+            photo={contact.photo}
             contact={{
               first_name: contact.first_name,
               last_name: contact.last_name,
