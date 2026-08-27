@@ -69,6 +69,39 @@ describe("ContactForm", () => {
     expect(await screen.findByAltText("Ada Lovelace profile photo")).toBeInTheDocument();
   });
 
+  it("disables submit while a photo is being processed", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    Object.defineProperty(globalThis, "createImageBitmap", {
+      configurable: true,
+      value: () => new Promise<never>(() => undefined),
+    });
+
+    try {
+      renderForm(action, makeContact());
+      await userEvent.upload(
+        screen.getByLabelText(/choose photo/i),
+        new File([new Uint8Array([137, 80, 78, 71])], "avatar.png", {
+          type: "image/png",
+        }),
+      );
+
+      expect(screen.getByRole("button", { name: /create contact/i })).toBeDisabled();
+      expect(screen.getByRole("status")).toHaveTextContent(/preparing photo/i);
+    } finally {
+      if (originalCreateImageBitmap) {
+        Object.defineProperty(globalThis, "createImageBitmap", {
+          configurable: true,
+          value: originalCreateImageBitmap,
+        });
+      } else {
+        delete (globalThis as { createImageBitmap?: unknown }).createImageBitmap;
+      }
+    }
+  });
+
   it("rejects unsupported and oversized photos", async () => {
     renderForm(jest.fn(), makeContact());
     const user = userEvent.setup({ applyAccept: false });

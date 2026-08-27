@@ -78,15 +78,20 @@ export default function ContactPhotoField({
   const requestRef = useRef(0);
   const [clientError, setClientError] = useState<string>();
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const visibleError = clientError ?? error;
 
   function rejectPhoto(message: string) {
+    setIsProcessing(false);
     setClientError(message);
     onValidityChange(false);
   }
 
   async function processPhoto(file: File) {
     const requestId = ++requestRef.current;
+    setClientError(undefined);
+    setIsProcessing(true);
+    onValidityChange(false);
 
     if (!ACCEPTED_TYPES.has(file.type)) {
       rejectPhoto("Choose a JPEG, PNG, or WebP image.");
@@ -102,6 +107,7 @@ export default function ContactPhotoField({
       if (requestId !== requestRef.current) return;
       onChange(dataUrl);
       setClientError(undefined);
+      setIsProcessing(false);
       onValidityChange(true);
     } catch {
       if (requestId !== requestRef.current) return;
@@ -132,12 +138,13 @@ export default function ContactPhotoField({
     requestRef.current += 1;
     onChange(null);
     setClientError(undefined);
+    setIsProcessing(false);
     onValidityChange(true);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" aria-busy={isProcessing}>
       <input type="hidden" name="photo" value={value ?? ""} readOnly />
       <label
         htmlFor="photo-upload"
@@ -194,6 +201,11 @@ export default function ContactPhotoField({
           <X className="h-3.5 w-3.5" aria-hidden="true" />
           Remove photo
         </Button>
+      ) : null}
+      {isProcessing ? (
+        <p role="status" className="text-[13px] text-muted-foreground">
+          Preparing photo…
+        </p>
       ) : null}
       {visibleError ? (
         <p id="photo-error" role="alert" className="text-[13px] text-destructive">

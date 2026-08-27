@@ -39,11 +39,11 @@ function addressFormValue(address: AddressInput, key: string): AddressFormValue 
   return { ...address, key };
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, disabled }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || disabled}>
       {pending ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
       ) : null}
@@ -321,7 +321,7 @@ export default function ContactForm({
       ))}
 
       <div className="flex items-center gap-2 border-t border-hairline pt-4">
-        <SubmitButton label={submitLabel} />
+        <SubmitButton label={submitLabel} disabled={photoInvalid} />
         <Link href={cancelHref} className={buttonClasses("secondary")}>
           Cancel
         </Link>
