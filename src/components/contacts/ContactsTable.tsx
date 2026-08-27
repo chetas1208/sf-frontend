@@ -44,6 +44,9 @@ export default function ContactsTable({
         <tbody>
           {contacts.map((contact) => {
             const subtitle = jobLine(contact);
+            const addressTypes = Array.from(
+              new Set(contact.addresses.map((address) => address.type)),
+            );
 
             return (
               <tr
@@ -64,6 +67,18 @@ export default function ContactsTable({
                         <span className="block truncate text-[12px] text-muted-foreground lg:hidden">
                           {subtitle}
                         </span>
+                      ) : null}
+                      {addressTypes.length ? (
+                        <div className="mt-1 flex flex-wrap gap-1" aria-label="Address types">
+                          {addressTypes.map((type) => (
+                            <span
+                              key={type}
+                              className="inline-flex rounded-full border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                            >
+                              {type}
+                            </span>
+                          ))}
+                        </div>
                       ) : null}
                     </div>
                   </div>

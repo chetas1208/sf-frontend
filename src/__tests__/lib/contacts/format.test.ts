@@ -4,6 +4,7 @@ import {
   formatTimestamp,
   initials,
   jobLine,
+  mapsDirectionsUrl,
 } from "@/lib/contacts/format";
 import { makeContact } from "../../mocks/handlers";
 
@@ -69,6 +70,34 @@ describe("addressLine", () => {
   it("returns null when there is no address at all", () => {
     expect(
       addressLine({ address: null, city: null, state: null, country: null, postal_code: null }),
+    ).toBeNull();
+  });
+});
+
+describe("mapsDirectionsUrl", () => {
+  it("encodes the rendered address for a key-free directions URL", () => {
+    expect(
+      mapsDirectionsUrl({
+        address: "1 Hacker Way",
+        city: "Menlo Park",
+        state: "CA",
+        postal_code: "94025",
+        country: "USA",
+      }),
+    ).toBe(
+      "https://www.google.com/maps/dir/?api=1&destination=1%20Hacker%20Way%2C%20Menlo%20Park%2C%20CA%2094025%2C%20USA",
+    );
+  });
+
+  it("returns null when no address can be searched", () => {
+    expect(
+      mapsDirectionsUrl({
+        address: null,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: null,
+      }),
     ).toBeNull();
   });
 });
