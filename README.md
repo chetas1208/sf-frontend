@@ -171,7 +171,32 @@ in-memory SQLite, that concurrency can wedge it — run `npm run test:e2e --
 --workers=2` (or `--project=chromium`) against a dev backend you don't mind
 restarting.
 
+## Docker
+
+Build and run the production image directly:
+
+```bash
+docker build -t sf-frontend .
+docker run --rm --name sf-frontend \
+  -p 3000:3000 \
+  --add-host=host.docker.internal:host-gateway \
+  -e API_BASE_URL=http://host.docker.internal:8000 \
+  sf-frontend
+```
+
+The image uses Next.js standalone output and runs as a non-root user. For the
+complete frontend + backend stack, run `docker compose up --build` from the
+workspace directory containing both `sf-backend` and `sf-frontend`; Compose sets
+the server-only API URL to `http://backend:8000` and persists SQLite data in a
+named volume.
+
 ## Deployment
 
 Standard Node server build: `npm run build && npm start`. Set `API_BASE_URL` in
 the server environment to wherever the Contacts API lives.
+
+## Pull request reviews
+
+Authorized pull requests are automatically reviewed by Qodo. Keep a new pull
+request open until the review completes; follow-up requests can use `/review`,
+`/improve`, or `/ask` in a pull-request comment.
