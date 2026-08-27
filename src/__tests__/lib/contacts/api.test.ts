@@ -10,6 +10,7 @@ import {
   getHealth,
   listContacts,
   toFieldErrors,
+  replaceContact,
 } from "@/lib/contacts/api";
 import type { ContactInput } from "@/lib/contacts/types";
 
@@ -24,6 +25,7 @@ const INPUT: ContactInput = {
   phone: null,
   company: null,
   job_title: null,
+  photo: null,
   address: null,
   city: null,
   state: null,
@@ -102,6 +104,17 @@ describe("createContact", () => {
     );
 
     await expect(createContact(INPUT)).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe("replaceContact", () => {
+  it("sends the full input including the photo", async () => {
+    const input = { ...INPUT, photo: "data:image/png;base64,iVBORw0KGgo=" };
+
+    await expect(replaceContact(1, input)).resolves.toMatchObject({
+      id: 1,
+      photo: input.photo,
+    });
   });
 });
 
