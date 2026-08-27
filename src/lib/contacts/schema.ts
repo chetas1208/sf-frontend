@@ -1,6 +1,18 @@
 import { z } from "zod";
 import type { ContactInput } from "./types";
 
+export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PHOTO_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})$/;
+
+function isValidPhotoDataUrl(value: string): boolean {
+  const match = PHOTO_DATA_URL.exec(value);
+  if (!match || !match[1] || match[1].length % 4 !== 0) return false;
+
+  const padding = match[1].endsWith("==") ? 2 : match[1].endsWith("=") ? 1 : 0;
+  const decodedBytes = (match[1].length * 3) / 4 - padding;
+  return decodedBytes > 0 && decodedBytes <= PHOTO_MAX_BYTES;
+}
+
 /**
  * Client/server-shared validation for the contact form.
  *
@@ -41,6 +53,16 @@ export const contactInputSchema = z.object({
   phone: optionalText(40, "Phone"),
   company: optionalText(200, "Company"),
   job_title: optionalText(200, "Job title"),
+  photo: z
+    .string()
+    .trim()
+    .transform((value) => value || null)
+    .nullable()
+    .refine(
+      (value) => value === null || isValidPhotoDataUrl(value),
+      "Choose a valid JPEG, PNG, or WebP image no larger than 2 MB",
+    )
+    .default(null),
   address: optionalText(300, "Address"),
   city: optionalText(120, "City"),
   state: optionalText(120, "State"),
@@ -218,10 +240,12 @@ export const CONTACT_FIELDS: ContactFieldSpec[] = CONTACT_FIELD_GROUPS.flatMap(
 export function formDataToValues(
   formData: FormData,
 ): Record<keyof ContactInput, string> {
-  return Object.fromEntries(
+  const values = Object.fromEntries(
     CONTACT_FIELDS.map((field) => [
       field.name,
       String(formData.get(field.name) ?? ""),
     ]),
   ) as Record<keyof ContactInput, string>;
+  values.photo = String(formData.get("photo") ?? "");
+  return values;
 }

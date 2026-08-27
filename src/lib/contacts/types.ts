@@ -12,6 +12,7 @@ export interface Contact {
   phone: string | null;
   company: string | null;
   job_title: string | null;
+  photo: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
