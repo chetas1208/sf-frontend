@@ -107,6 +107,30 @@ describe("ShareContactButton", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("traps keyboard focus and redirects focus that reaches the background", async () => {
+    const user = userEvent.setup();
+    render(<ShareContactButton contact={makeContact()} />);
+
+    await user.click(screen.getByRole("button", { name: "Share Contact" }));
+    const dialog = await screen.findByRole("dialog");
+    const closeButton = within(dialog).getByRole("button", {
+      name: "Close Contact Passport",
+    });
+    const downloadButton = within(dialog).getByRole("button", { name: "Download vCard" });
+
+    expect(closeButton).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(downloadButton).toHaveFocus();
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+
+    const backgroundButton = document.createElement("button");
+    document.body.appendChild(backgroundButton);
+    backgroundButton.focus();
+    expect(closeButton).toHaveFocus();
+    backgroundButton.remove();
+  });
+
   it("shows a recoverable QR error", async () => {
     const user = userEvent.setup();
     toDataURL.mockRejectedValueOnce(new Error("QR unavailable"));
@@ -121,6 +145,30 @@ describe("ShareContactButton", () => {
     await user.click(within(dialog).getByRole("button", { name: "Try again" }));
     expect(await within(dialog).findByRole("img", { name: /qr code/i })).toBeInTheDocument();
     expect(toDataURL).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a non-retryable fallback when a valid contact exceeds QR capacity", async () => {
+    const user = userEvent.setup();
+    const baseAddress = makeContact().addresses[0];
+    const largeContact = makeContact({
+      notes: "x".repeat(10_000),
+      addresses: Array.from({ length: 10 }, (_, index) => ({
+        ...baseAddress,
+        id: index + 1,
+        address: "x".repeat(300),
+      })),
+    });
+    render(<ShareContactButton contact={largeContact} />);
+
+    await user.click(screen.getByRole("button", { name: "Share Contact" }));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "This contact is too large for one QR code.",
+    );
+    expect(within(dialog).queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(toDataURL).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("button", { name: "Download vCard" })).toBeInTheDocument();
   });
 
   it("uses native file sharing when the browser supports it", async () => {

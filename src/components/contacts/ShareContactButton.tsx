@@ -2,10 +2,12 @@
 
 import { Check, Download, Loader2, QrCode, Share2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import Button, { buttonClasses } from "@/components/ui/Button";
 import ContactAvatar from "@/components/contacts/ContactAvatar";
 import { buildVCard, type ShareContactData } from "@/lib/contacts/vcard";
+import { buildQrVCard, isQrCapacityError } from "@/lib/contacts/qr";
 
 function downloadName(contact: ShareContactData): string {
   const slug = `${contact.first_name}-${contact.last_name}`
@@ -44,6 +46,7 @@ function ContactPassportDialog({
   contact,
   photo,
   vCard,
+  qrVCard,
   downloaded,
   onDownload,
   onClose,
@@ -51,15 +54,20 @@ function ContactPassportDialog({
   contact: ShareContactData;
   photo: string | null;
   vCard: string;
+  qrVCard: string | null;
   downloaded: boolean;
   onDownload: () => void;
   onClose: () => void;
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [qrStatus, setQrStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [qrStatus, setQrStatus] = useState<
+    "loading" | "ready" | "error" | "capacity"
+  >(qrVCard ? "loading" : "capacity");
   const [qrAttempt, setQrAttempt] = useState(0);
   const [shareAvailable] = useState(
     () => typeof navigator !== "undefined" && typeof navigator.share === "function",
@@ -70,8 +78,13 @@ function ContactPassportDialog({
 
   useEffect(() => {
     let cancelled = false;
+    if (!qrVCard) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    QRCode.toDataURL(vCard, {
+    QRCode.toDataURL(qrVCard, {
       errorCorrectionLevel: "M",
       margin: 2,
       width: 280,
@@ -82,26 +95,88 @@ function ContactPassportDialog({
         setQrDataUrl(dataUrl);
         setQrStatus("ready");
       })
-      .catch(() => {
-        if (!cancelled) setQrStatus("error");
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setQrStatus(isQrCapacityError(error) ? "capacity" : "error");
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [qrAttempt, vCard]);
+  }, [qrAttempt, qrVCard]);
 
   useEffect(() => {
+    const dialogElement = dialogRef.current;
+    const overlay = overlayRef.current;
+    if (!dialogElement || !overlay) return;
+    const dialog = dialogElement as HTMLDivElement;
+
     const previousFocus = document.activeElement as HTMLElement | null;
+    type InertElement = HTMLElement & { inert: boolean };
+    const background = Array.from(document.body.children)
+      .filter((element) => element !== overlay)
+      .map((element) => {
+        const inertElement = element as InertElement;
+        return { element: inertElement, inert: inertElement.inert };
+      });
+    background.forEach(({ element }) => {
+      element.inert = true;
+    });
+
+    function focusableElements(): HTMLElement[] {
+      return Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+    }
+
+    function focusFirst() {
+      closeButtonRef.current?.focus();
+    }
+
     closeButtonRef.current?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+
+      const focusable = focusableElements();
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        focusFirst();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      if (event.target instanceof Node && !dialog.contains(event.target)) {
+        focusFirst();
+      }
     }
 
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
+      background.forEach(({ element, inert }) => {
+        element.inert = inert;
+      });
       previousFocus?.focus();
     };
   }, [onClose]);
@@ -125,14 +200,16 @@ function ContactPassportDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div
+      ref={overlayRef}
       className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -181,6 +258,17 @@ function ContactPassportDialog({
               <div role="status" className="flex items-center gap-2 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 Generating QR code…
+              </div>
+            </div>
+          ) : qrStatus === "capacity" ? (
+            <div className="grid aspect-square w-full place-items-center px-6">
+              <div>
+                <p role="alert" className="text-sm text-destructive">
+                  This contact is too large for one QR code.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Download the full vCard instead.
+                </p>
               </div>
             </div>
           ) : (
@@ -239,7 +327,8 @@ function ContactPassportDialog({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -253,6 +342,7 @@ export default function ShareContactButton({
   const [open, setOpen] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const vCard = buildVCard(contact);
+  const qrVCard = buildQrVCard(contact);
 
   function downloadVCard() {
     const blob = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
@@ -282,6 +372,7 @@ export default function ShareContactButton({
           contact={contact}
           photo={photo}
           vCard={vCard}
+          qrVCard={qrVCard}
           downloaded={downloaded}
           onDownload={downloadVCard}
           onClose={() => setOpen(false)}
