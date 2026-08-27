@@ -65,8 +65,11 @@ Click a row to get here. It confirms the detail read path works end to end:
 - **Field table** — email and phone rendered as `mailto:` / `tel:` links, then
   company, job title, typed addresses, and notes. Empty optional fields show `—`
   rather than collapsing, so the shape of the record stays readable.
-- **Share** — download the contact as a standards-compatible `.vcf` vCard,
-  including available phone, company, job title, notes, and typed addresses.
+- **Share** — open the Contact Passport to scan a locally generated QR code or
+  download the contact as a standards-compatible `.vcf` vCard, including
+  available phone, company, job title, notes, and typed addresses. Browsers
+  that support the Web Share API can share the vCard directly; download remains
+  the reliable fallback.
 - **Metadata table** — `ID`, `Created`, and `Last updated` in UTC, monospaced.
 
 Hand-editing the URL to an ID that does not exist gives you the styled 404 page
