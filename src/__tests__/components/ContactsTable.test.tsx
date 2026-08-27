@@ -59,6 +59,28 @@ describe("ContactsTable", () => {
 
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
+
+  it("shows unique typed-address badges beside a contact", () => {
+    render(
+      <ContactsTable
+        contacts={[
+          {
+            ...CONTACTS[0],
+            addresses: [
+              CONTACTS[0].addresses[0],
+              { ...CONTACTS[0].addresses[0], id: 2, type: "Work" },
+              { ...CONTACTS[0].addresses[0], id: 3, type: "Home" },
+            ],
+          },
+        ]}
+        query={DEFAULT_LIST_QUERY}
+      />,
+    );
+
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getAllByText("Home")).toHaveLength(1);
+  });
 });
 
 describe("Pagination", () => {

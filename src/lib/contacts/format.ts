@@ -54,3 +54,13 @@ export function addressLine(address: Pick<Address, "address" | "city" | "state" 
 
   return parts.length ? parts.join(", ") : null;
 }
+
+/** Build a key-free Google Maps directions URL for a complete address. */
+export function mapsDirectionsUrl(
+  address: Pick<Address, "address" | "city" | "state" | "postal_code" | "country">,
+): string | null {
+  const line = addressLine(address);
+  if (!line) return null;
+
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(line)}`;
+}

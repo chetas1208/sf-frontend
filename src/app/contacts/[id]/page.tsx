@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Pencil } from "lucide-react";
+import AddressActions from "@/components/contacts/AddressActions";
 import ContactAvatar from "@/components/contacts/ContactAvatar";
 import DeleteContactButton from "@/components/contacts/DeleteContactButton";
 import ShareContactButton from "@/components/contacts/ShareContactButton";
@@ -123,6 +124,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
                     {address.type}
                   </span>
                   <p>{addressLine(address) ?? "No postal details"}</p>
+                  <AddressActions address={address} />
                 </div>
               ))}
             </div>
