@@ -4,17 +4,16 @@ import {
   useActionState,
   useRef,
   useState,
-  type ChangeEvent,
+  type FormEvent,
 } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { AlertCircle, ImagePlus, Loader2, X } from "lucide-react";
+import { AlertCircle, Loader2, X } from "lucide-react";
 import Field from "@/components/ui/Field";
 import Button, { buttonClasses } from "@/components/ui/Button";
-import ContactAvatar from "@/components/contacts/ContactAvatar";
+import ContactPhotoField from "@/components/contacts/ContactPhotoField";
 import {
   CONTACT_FIELD_GROUPS,
-  PHOTO_MAX_BYTES,
 } from "@/lib/contacts/schema";
 import {
   EMPTY_FORM_STATE,
@@ -71,8 +70,7 @@ export default function ContactForm({
 }) {
   const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
   const [photo, setPhoto] = useState<string | null>(contact?.photo ?? null);
-  const [photoError, setPhotoError] = useState<string>();
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoInvalid, setPhotoInvalid] = useState(false);
   const addressKeyRef = useRef(0);
   const [addresses, setAddresses] = useState<AddressFormValue[]>(() =>
     (contact?.addresses ?? []).map((address) =>
@@ -82,42 +80,6 @@ export default function ContactForm({
 
   function valueFor(name: Exclude<keyof ContactInput, "addresses">): string {
     return state.values?.[name] ?? contact?.[name] ?? "";
-  }
-
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    if (!file) return;
-
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setPhotoError("Choose a JPEG, PNG, or WebP image.");
-      event.currentTarget.value = "";
-      return;
-    }
-    if (file.size > PHOTO_MAX_BYTES) {
-      setPhotoError("Photo must be 2 MB or smaller.");
-      event.currentTarget.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        setPhotoError("That photo could not be read. Choose another file.");
-        return;
-      }
-      setPhoto(reader.result);
-      setPhotoError(undefined);
-    };
-    reader.onerror = () => {
-      setPhotoError("That photo could not be read. Choose another file.");
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removePhoto() {
-    setPhoto(null);
-    setPhotoError(undefined);
-    if (photoInputRef.current) photoInputRef.current.value = "";
   }
 
   function addAddress() {
@@ -163,17 +125,12 @@ export default function ContactForm({
     country: address.country,
   }));
 
-  const photoFieldError = photoError ?? state.fieldErrors?.photo;
-  const previewContact = {
-    first_name: valueFor("first_name"),
-    last_name: valueFor("last_name"),
-    email: valueFor("email"),
-    photo,
-  };
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (photoInvalid) event.preventDefault();
+  }
 
   return (
-    <form action={formAction} noValidate className="space-y-8">
-      <input type="hidden" name="photo" value={photo ?? ""} readOnly />
+    <form action={formAction} onSubmit={handleSubmit} noValidate className="space-y-8">
       {state.status === "error" && state.message ? (
         <div
           role="alert"
@@ -199,44 +156,17 @@ export default function ContactForm({
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <ContactAvatar contact={previewContact} size="lg" />
-          <div className="space-y-2">
-            <input
-              ref={photoInputRef}
-              id="photo-upload"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={handlePhotoChange}
-              aria-describedby="photo-help photo-error"
-            />
-            <label htmlFor="photo-upload" className={buttonClasses("secondary")}>
-              <ImagePlus className="h-4 w-4" aria-hidden="true" />
-              {photo ? "Replace photo" : "Choose photo"}
-            </label>
-            <p id="photo-help" className="text-[13px] text-muted-foreground">
-              JPEG, PNG or WebP · max 2 MB
-            </p>
-            {photo ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={removePhoto}
-                className="text-destructive hover:text-destructive"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-                Remove photo
-              </Button>
-            ) : null}
-            {photoFieldError ? (
-              <p id="photo-error" role="alert" className="text-[13px] text-destructive">
-                {photoFieldError}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <ContactPhotoField
+          value={photo}
+          contact={{
+            first_name: valueFor("first_name"),
+            last_name: valueFor("last_name"),
+            email: valueFor("email"),
+          }}
+          error={state.fieldErrors?.photo}
+          onChange={setPhoto}
+          onValidityChange={(isValid) => setPhotoInvalid(!isValid)}
+        />
       </fieldset>
 
       <fieldset className="space-y-4">

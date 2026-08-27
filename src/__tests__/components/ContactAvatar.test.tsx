@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import ContactAvatar from "@/components/contacts/ContactAvatar";
 import { makeContact } from "../mocks/handlers";
 
@@ -22,5 +22,18 @@ describe("ContactAvatar", () => {
       "src",
       "data:image/jpeg;base64,/9j/4AAQ",
     );
+  });
+
+  it("falls back to initials when a stored photo cannot load", () => {
+    render(
+      <ContactAvatar
+        contact={makeContact({ photo: "data:image/jpeg;base64,/9j/4AAQ" })}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole("img"));
+
+    expect(screen.getByText("AL")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });
